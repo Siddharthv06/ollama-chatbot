@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Siddharth's Chatbot</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #000;
+            color: #fff;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background-color: #111;
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid #333;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            color: #ccc;
+            font-size: 14px;
+        }
+
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 20px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #111;
+            border-radius: 10px;
+            border: 1px solid #333;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            max-width: 80%;
+        }
+
+        .user-message {
+            background-color: #333;
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .bot-message {
+            background-color: #222;
+            margin-right: auto;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+            padding: 10px;
+            background-color: #111;
+            border-radius: 10px;
+            border: 1px solid #333;
+        }
+
+        #question-input {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            background-color: #222;
+            color: #fff;
+            font-size: 16px;
+        }
+
+        #question-input::placeholder {
+            color: #666;
+        }
+
+        #send-btn {
+            padding: 12px 20px;
+            background-color: #fff;
+            color: #000;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        #send-btn:hover {
+            background-color: #ccc;
+        }
+
+        #send-btn:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            color: #666;
+            font-style: italic;
+        }
+
+        @media (max-width: 600px) {
+            .chat-container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 20px;
+            }
+            
+            .message {
+                max-width: 90%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Siddharth's Personal Chatbot</h1>
+        <p>Ask me anything about myself!</p>
+    </div>
+
+    <div class="chat-container">
+        <div class="chat-messages" id="chat-messages">
+            <div class="message bot-message">
+                Hi! I'm Siddharth. Ask me anything about myself!
+            </div>
+        </div>
+
+        <div class="input-container">
+            <input type="text" id="question-input" placeholder="Type your question here..." autocomplete="off">
+            <button id="send-btn">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const chatMessages = document.getElementById('chat-messages');
+        const questionInput = document.getElementById('question-input');
+        const sendBtn = document.getElementById('send-btn');
+
+        function addMessage(message, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+            messageDiv.textContent = message;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function addLoadingMessage() {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message bot-message loading';
+            loadingDiv.id = 'loading-message';
+            loadingDiv.textContent = 'Thinking...';
+            chatMessages.appendChild(loadingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function removeLoadingMessage() {
+            const loadingMessage = document.getElementById('loading-message');
+            if (loadingMessage) {
+                loadingMessage.remove();
+            }
+        }
+
+        async function askQuestion(question) {
+            try {
+                const response = await fetch('/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ question: question })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    return data.answer;
+                } else {
+                    throw new Error(data.error || 'Failed to get answer');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                return 'Sorry, I encountered an error. Please try again.';
+            }
+        }
+
+        async function handleSend() {
+            const question = questionInput.value.trim();
+            if (!question) return;
+
+            // Add user message
+            addMessage(question, true);
+            questionInput.value = '';
+
+            // Disable input while processing
+            questionInput.disabled = true;
+            sendBtn.disabled = true;
+
+            // Show loading message
+            addLoadingMessage();
+
+            // Get answer
+            const answer = await askQuestion(question);
+
+            // Remove loading and add answer
+            removeLoadingMessage();
+            addMessage(answer);
+
+            // Re-enable input
+            questionInput.disabled = false;
+            sendBtn.disabled = false;
+            questionInput.focus();
+        }
+
+        // Event listeners
+        sendBtn.addEventListener('click', handleSend);
+        questionInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleSend();
+            }
+        });
+
+        // Focus on input when page loads
+        questionInput.focus();
+    </script>
+</body>
+</html> 
